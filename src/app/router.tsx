@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { NotFound } from '@/components/shared/NotFound'
 import { ProtectedRoute } from './ProtectedRoute'
 import { GuestRoute } from './GuestRoute'
 
@@ -151,7 +152,7 @@ export function AppRouter() {
           <Route path="configuracoes" element={<Configuracoes />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/flow" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
   )

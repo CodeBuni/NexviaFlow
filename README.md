@@ -40,10 +40,16 @@ Abrir [http://localhost:5173/flow](http://localhost:5173/flow).
 ## API (Vercel)
 
 - `POST /api/make/create-scenario` — cria/ativa cenário Make
+- `POST /api/make/ingest-metrics` — ingestão de métricas (service role + bearer)
+- `POST /api/google/exchange-token` — troca code OAuth Google Calendar
 - `POST /api/stripe/create-checkout` — sessão Stripe Checkout
 - `POST /api/stripe/webhook` — webhooks Stripe
 
-Sem credenciais Make/Stripe, a app corre em **modo demo** (ativação e planos simulados).
+Sem credenciais Make/Stripe/Google, a app corre em **modo demo** (ativação e planos simulados). Com secrets definidos, falhas de API devolvem erro (não fingem sucesso).
+
+## Demo local
+
+Utilizador de teste (Auth Supabase): `demo@nexviaflow.test` / `TestFlow123!`
 
 ## Supabase
 
@@ -55,6 +61,11 @@ Tabelas: `clinicas`, `configuracoes`, `metricas_diarias`, `consultas` (RLS ativo
 
 - **Starter** — €197/mês
 - **Pro** — €497/mês
+
+## Tracking
+
+- Linear: projeto [Nexvia Flow](https://linear.app/marcos-bonifacio/project/nexvia-flow-e699b06408df)
+- Notion: [Hub do Produto](https://app.notion.com/p/3b3bba02becc81d19b71f38e00d20d6e)
 
 ## Contacto
 

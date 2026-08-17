@@ -60,6 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const bootstrapped = useRef(false)
 
   const fetchClinica = useCallback(async (userId: string) => {
+    const {
+      data: { session: current },
+    } = await supabase.auth.getSession()
+    if (!current?.user || current.user.id !== userId) {
+      setClinica(null)
+      return null
+    }
+
     const { data, error } = await supabase
       .from('clinicas')
       .select('*')
@@ -67,6 +75,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle()
 
     if (error) {
+      // Auth race during bootstrap — avoid noisy console when session not ready
+      if (error.message?.includes('Auth session missing') || error.code === 'PGRST301') {
+        return null
+      }
       console.error(error)
       return null
     }

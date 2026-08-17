@@ -79,6 +79,7 @@ export function useDashboard(clinicaId?: string, opts?: { allowDemo?: boolean })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isDemo, setIsDemo] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     if (!clinicaId) {
@@ -199,7 +200,15 @@ export function useDashboard(clinicaId?: string, opts?: { allowDemo?: boolean })
     return () => {
       mounted = false
     }
-  }, [clinicaId, allowDemo])
+  }, [clinicaId, allowDemo, refreshKey])
 
-  return { hoje, mes, consultas, loading, error, isDemo }
+  return {
+    hoje,
+    mes,
+    consultas,
+    loading,
+    error,
+    isDemo,
+    refresh: () => setRefreshKey((k) => k + 1),
+  }
 }
