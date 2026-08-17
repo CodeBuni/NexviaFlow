@@ -1,28 +1,30 @@
 import { MetricCard } from '@/components/ui/MetricCard'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { useAuth } from '@/hooks/useAuth'
-import { useDashboard } from '@/hooks/useDashboard'
+import { Badge } from '@/components/ui/Badge'
+import { useDashboardContext } from '@/hooks/useDashboardContext'
 import { formatCurrency, formatPercent } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 
 export function RelatorioMensal() {
-  const { clinica } = useAuth()
-  const { mes, hoje } = useDashboard(clinica?.id)
+  const { mes, hoje, isDemo } = useDashboardContext()
   const { toast } = useToast()
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="font-display text-2xl font-bold">Relatório mensal</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-2xl font-bold">Relatório mensal</h2>
+            {isDemo && <Badge>Demo</Badge>}
+          </div>
           <p className="mt-1 text-white/50">
             Impacto financeiro da retenção na sua clínica.
           </p>
         </div>
         <Button
           variant="secondary"
-          onClick={() => toast('Exportação disponível em breve.', 'info')}
+          onClick={() => toast('Exportação PDF disponível em breve.', 'info')}
         >
           Exportar PDF
         </Button>

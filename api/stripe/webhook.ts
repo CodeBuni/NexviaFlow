@@ -23,11 +23,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const secret = process.env.STRIPE_SECRET_KEY
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!secret || !webhookSecret || !supabaseUrl || !serviceKey) {
-    return res.status(200).json({ received: true, demo: true })
+  if (
+    !secret ||
+    !webhookSecret ||
+    !supabaseUrl ||
+    !serviceKey ||
+    secret.includes('xxxxx')
+  ) {
+    return res.status(503).json({
+      message: 'Stripe webhook não configurado (faltam secrets).',
+      demo: true,
+    })
   }
 
   const stripe = new Stripe(secret)
@@ -51,7 +60,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session
-      const clinicaId = session.metadata?.clinicaId
+      const clinicaId =
+        session.metadata?.clinicaId || session.client_reference_id || undefined
       const plano = session.metadata?.plano
       if (clinicaId) {
         await supabase
@@ -67,17 +77,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    if (
-      event.type === 'invoice.payment_failed' ||
-      event.type === 'customer.subscription.updated'
-    ) {
-      const obj = event.data.object as Stripe.Subscription | Stripe.Invoice
+    if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object as Stripe.Invoice
       const subId =
-        'subscription' in obj
-          ? (obj.subscription as string)
-          : (obj as Stripe.Subscription).id
-
-      if (event.type === 'invoice.payment_failed' && subId) {
+        typeof invoice.subscription === 'string'
+          ? invoice.subscription
+          : invoice.subscription?.id
+      if (subId) {
         const grace = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         await supabase
           .from('clinicas')
@@ -87,6 +93,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           })
           .eq('stripe_subscription_id', subId)
       }
+    }
+
+    if (event.type === 'customer.subscription.updated') {
+      const sub = event.data.object as Stripe.Subscription
+      const status = sub.status
+      const plano = sub.metadata?.plano
+      await supabase
+        .from('clinicas')
+        .update({
+          stripe_status: status,
+          ...(plano ? { plano } : {}),
+          ...(status === 'active' ? { grace_period_ends_at: null } : {}),
+        })
+        .eq('stripe_subscription_id', sub.id)
+    }
+
+    if (event.type === 'customer.subscription.deleted') {
+      const sub = event.data.object as Stripe.Subscription
+      await supabase
+        .from('clinicas')
+        .update({
+          stripe_status: 'canceled',
+          stripe_subscription_id: null,
+        })
+        .eq('stripe_subscription_id', sub.id)
     }
   } catch (error) {
     console.error(error)

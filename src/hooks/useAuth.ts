@@ -5,11 +5,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import type { Clinica, OnboardingStep, Plano } from '@/types'
 import { ONBOARDING_ROUTES } from '@/types'
 
@@ -23,11 +24,21 @@ interface RegistoInput {
   plano?: Plano
 }
 
+export class EmailConfirmationRequiredError extends Error {
+  constructor() {
+    super(
+      'Conta criada. Confirme o email que enviámos antes de continuar o onboarding.',
+    )
+    this.name = 'EmailConfirmationRequiredError'
+  }
+}
+
 interface AuthContextValue {
   session: Session | null
   user: User | null
   clinica: Clinica | null
   loading: boolean
+  configured: boolean
   registo: (input: RegistoInput) => Promise<Clinica>
   login: (email: string, password: string) => Promise<unknown>
   loginComGoogle: () => Promise<void>
@@ -45,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [clinica, setClinica] = useState<Clinica | null>(null)
   const [loading, setLoading] = useState(true)
+  const configured = isSupabaseConfigured()
+  const bootstrapped = useRef(false)
 
   const fetchClinica = useCallback(async (userId: string) => {
     const { data, error } = await supabase
@@ -63,41 +76,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (!configured) {
+      setLoading(false)
+      return
+    }
+
     let mounted = true
 
-    supabase.auth.getSession().then(({ data }) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, next) => {
       if (!mounted) return
-      setSession(data.session)
-      setUser(data.session?.user ?? null)
-      if (data.session?.user) {
-        fetchClinica(data.session.user.id).finally(() => {
-          if (mounted) setLoading(false)
-        })
-      } else {
-        setLoading(false)
-      }
-    })
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+      // Skip duplicate INITIAL_SESSION after getSession already ran
+      if (event === 'INITIAL_SESSION' && bootstrapped.current) return
+
       setSession(next)
       setUser(next?.user ?? null)
+
       if (next?.user) {
-        setLoading(true)
-        fetchClinica(next.user.id).finally(() => setLoading(false))
+        if (event !== 'TOKEN_REFRESHED') setLoading(true)
+        await fetchClinica(next.user.id)
+        if (mounted) setLoading(false)
       } else {
         setClinica(null)
-        setLoading(false)
+        if (mounted) setLoading(false)
       }
+      bootstrapped.current = true
     })
 
     return () => {
       mounted = false
       sub.subscription.unsubscribe()
     }
-  }, [fetchClinica])
+  }, [configured, fetchClinica])
 
   const registo = useCallback(
     async (input: RegistoInput) => {
+      if (!configured) throw new Error('Supabase não configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.')
+
       const { data, error } = await supabase.auth.signUp({
         email: input.email,
         password: input.password,
@@ -105,12 +120,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           data: {
             nome_clinica: input.nomeClinica,
             nome_responsavel: input.nomeResponsavel,
+            telefone: input.telefone || '',
+            especialidade: input.especialidade || '',
+            plano: input.plano || 'starter',
           },
         },
       })
 
       if (error) throw error
       if (!data.user) throw new Error('Conta criada, mas sem utilizador.')
+
+      // Email confirmation required — trigger creates clinica; user must confirm first
+      if (!data.session) {
+        throw new EmailConfirmationRequiredError()
+      }
 
       const payload = {
         user_id: data.user.id,
@@ -154,11 +177,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setClinica(clinicaData as Clinica)
       return clinicaData as Clinica
     },
-    [fetchClinica],
+    [configured, fetchClinica],
   )
 
   const login = useCallback(
     async (email: string, password: string) => {
+      if (!configured) throw new Error('Supabase não configurado.')
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -167,18 +191,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.user) await fetchClinica(data.user.id)
       return data
     },
-    [fetchClinica],
+    [configured, fetchClinica],
   )
 
   const loginComGoogle = useCallback(async () => {
+    if (!configured) throw new Error('Supabase não configurado.')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/flow/onboarding/calendario`,
+        redirectTo: `${window.location.origin}/flow/auth/callback`,
       },
     })
     if (error) throw error
-  }, [])
+  }, [configured])
 
   const logout = useCallback(async () => {
     const { error } = await supabase.auth.signOut()
@@ -214,7 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const getPostLoginPath = useCallback(
     (c: Clinica | null = clinica) => {
-      if (!c) return '/flow/registo'
+      if (!c) return '/flow/auth/callback'
       if (!c.onboarding_completo && c.onboarding_step !== 'completo') {
         return ONBOARDING_ROUTES[
           c.onboarding_step as Exclude<OnboardingStep, 'completo'>
@@ -231,6 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       clinica,
       loading,
+      configured,
       registo,
       login,
       loginComGoogle,
@@ -245,6 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       clinica,
       loading,
+      configured,
       registo,
       login,
       loginComGoogle,

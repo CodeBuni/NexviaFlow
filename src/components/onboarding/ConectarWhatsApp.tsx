@@ -22,15 +22,19 @@ export function ConectarWhatsApp() {
     setLoading(true)
     try {
       const result = await connect()
+      if (!result.ok) {
+        toast(result.reason, 'error')
+        return
+      }
       await updateClinica({
         whatsapp_connected: true,
-        whatsapp_phone_id: result.phoneId || 'demo_phone_id',
-        whatsapp_phone_number: result.phoneNumber || '+351 900 000 000',
+        whatsapp_phone_id: result.phoneId,
+        whatsapp_phone_number: result.phoneNumber,
         whatsapp_token: { demo: result.demo },
       })
       toast(
-        result.demo && !configured
-          ? 'Modo demo: WhatsApp simulado (configure Meta depois).'
+        result.demo
+          ? 'Modo demo: WhatsApp simulado. Configure Meta Embedded Signup depois.'
           : 'WhatsApp conectado.',
         'success',
       )
@@ -71,23 +75,25 @@ export function ConectarWhatsApp() {
           <div>
             <h2 className="font-display text-xl font-bold">WhatsApp Business</h2>
             <p className="mt-1 text-sm text-white/60">
-              Leia o QR code no telemóvel da clínica para autorizar o envio.
+              {configured
+                ? 'Embedded Signup ainda não está ativo — use demo ou aguarde MAR-23.'
+                : 'Sem Meta App configurada: pode avançar em modo demo.'}
             </p>
           </div>
         </div>
 
-        {!connected && (
+        {!connected && !configured && (
           <div className="mx-auto flex h-48 w-48 items-center justify-center border-2 border-dashed border-white/20 bg-bg-primary">
             <div className="text-center">
               <div className="mx-auto mb-2 grid h-24 w-24 grid-cols-5 gap-1">
                 {Array.from({ length: 25 }).map((_, i) => (
                   <div
                     key={i}
-                    className={`h-full w-full ${i % 3 === 0 ? 'bg-white' : 'bg-transparent border border-white/20'}`}
+                    className={`h-full w-full ${i % 3 === 0 ? 'bg-white' : 'border border-white/20 bg-transparent'}`}
                   />
                 ))}
               </div>
-              <p className="text-xs text-white/40">QR code Meta</p>
+              <p className="text-xs text-white/40">QR demo</p>
             </div>
           </div>
         )}
@@ -103,8 +109,37 @@ export function ConectarWhatsApp() {
             <Badge tone="green">Ativo</Badge>
           </div>
         ) : (
-          <Button onClick={handleConnect} loading={loading} className="w-full">
-            Conectar WhatsApp Business
+          <Button
+            onClick={handleConnect}
+            loading={loading}
+            className="w-full"
+            disabled={configured}
+          >
+            {configured ? 'Embedded Signup em falta' : 'Conectar WhatsApp (demo)'}
+          </Button>
+        )}
+
+        {configured && !connected && (
+          <Button
+            variant="secondary"
+            className="w-full"
+            loading={loading}
+            onClick={async () => {
+              setLoading(true)
+              try {
+                await updateClinica({
+                  whatsapp_connected: true,
+                  whatsapp_phone_id: 'demo_phone_id',
+                  whatsapp_phone_number: '+351 900 000 000',
+                  whatsapp_token: { demo: true },
+                })
+                toast('Avançou com WhatsApp demo temporário.', 'info')
+              } finally {
+                setLoading(false)
+              }
+            }}
+          >
+            Continuar em modo demo
           </Button>
         )}
 

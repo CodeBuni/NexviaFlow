@@ -5,11 +5,12 @@ import { OnboardingShell } from './OnboardingShell'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/hooks/useAuth'
 import { useMakeAPI } from '@/hooks/useMakeAPI'
 import { supabase } from '@/lib/supabase'
-import type { Configuracoes } from '@/types'
+import { DEFAULT_TEMPLATES, type Configuracoes } from '@/types'
 
 export function ConfirmacaoAtivacao() {
   const navigate = useNavigate()
@@ -17,20 +18,50 @@ export function ConfirmacaoAtivacao() {
   const { clinica, updateClinica, advanceOnboarding } = useAuth()
   const { ativar } = useMakeAPI()
   const [config, setConfig] = useState<Configuracoes | null>(null)
+  const [configLoading, setConfigLoading] = useState(true)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!clinica) return
+    setConfigLoading(true)
     supabase
       .from('configuracoes')
       .select('*')
       .eq('clinica_id', clinica.id)
       .maybeSingle()
-      .then(({ data }) => setConfig(data as Configuracoes | null))
-  }, [clinica])
+      .then(({ data, error }) => {
+        if (error) {
+          toast(error.message, 'error')
+        }
+        if (data) {
+          setConfig(data as Configuracoes)
+        } else {
+          // Ensure row exists with defaults
+          void supabase
+            .from('configuracoes')
+            .upsert(
+              {
+                clinica_id: clinica.id,
+                ...DEFAULT_TEMPLATES,
+              },
+              { onConflict: 'clinica_id' },
+            )
+            .select('*')
+            .single()
+            .then(({ data: created }) => {
+              if (created) setConfig(created as Configuracoes)
+            })
+        }
+        setConfigLoading(false)
+      })
+  }, [clinica, toast])
 
   const handleAtivar = async () => {
-    if (!clinica || !config) return
+    if (!clinica) return
+    if (!config) {
+      toast('A carregar configurações… tente novamente.', 'error')
+      return
+    }
     if (clinica.make_scenario_id) {
       toast('O Nexvia Flow já está ativo nesta clínica.', 'info')
       navigate('/flow/dashboard')
@@ -96,38 +127,47 @@ export function ConfirmacaoAtivacao() {
           </h2>
         </div>
 
-        <ul className="space-y-3 text-sm">
-          <li className="flex justify-between border-b-2 border-white/5 py-2">
-            <span className="text-white/50">Calendário</span>
-            <Badge tone={clinica?.google_calendar_connected ? 'green' : 'red'}>
-              {clinica?.google_calendar_connected ? 'Conectado' : 'Pendente'}
-            </Badge>
-          </li>
-          <li className="flex justify-between border-b-2 border-white/5 py-2">
-            <span className="text-white/50">WhatsApp</span>
-            <span className="font-bold">
-              {clinica?.whatsapp_phone_number || '—'}
-            </span>
-          </li>
-          <li className="flex justify-between border-b-2 border-white/5 py-2">
-            <span className="text-white/50">Antecedência</span>
-            <span className="font-bold">
-              {config?.dias_antecedencia_lembrete ?? '—'} dias
-            </span>
-          </li>
-          <li className="flex justify-between border-b-2 border-white/5 py-2">
-            <span className="text-white/50">Fila de espera</span>
-            <span className="font-bold">
-              {config?.fila_espera_ativa ? 'Ativa' : 'Desligada'}
-            </span>
-          </li>
-          <li className="flex justify-between py-2">
-            <span className="text-white/50">Plano</span>
-            <Badge>{clinica?.plano || 'starter'}</Badge>
-          </li>
-        </ul>
+        {configLoading ? (
+          <Skeleton className="h-40 w-full" />
+        ) : (
+          <ul className="space-y-3 text-sm">
+            <li className="flex justify-between border-b-2 border-white/5 py-2">
+              <span className="text-white/50">Calendário</span>
+              <Badge tone={clinica?.google_calendar_connected ? 'green' : 'red'}>
+                {clinica?.google_calendar_connected ? 'Conectado' : 'Pendente'}
+              </Badge>
+            </li>
+            <li className="flex justify-between border-b-2 border-white/5 py-2">
+              <span className="text-white/50">WhatsApp</span>
+              <span className="font-bold">
+                {clinica?.whatsapp_phone_number || '—'}
+              </span>
+            </li>
+            <li className="flex justify-between border-b-2 border-white/5 py-2">
+              <span className="text-white/50">Antecedência</span>
+              <span className="font-bold">
+                {config?.dias_antecedencia_lembrete ?? '—'} dias
+              </span>
+            </li>
+            <li className="flex justify-between border-b-2 border-white/5 py-2">
+              <span className="text-white/50">Fila de espera</span>
+              <span className="font-bold">
+                {config?.fila_espera_ativa ? 'Ativa' : 'Desligada'}
+              </span>
+            </li>
+            <li className="flex justify-between py-2">
+              <span className="text-white/50">Plano</span>
+              <Badge>{clinica?.plano || 'starter'}</Badge>
+            </li>
+          </ul>
+        )}
 
-        <Button className="w-full" onClick={handleAtivar} loading={loading}>
+        <Button
+          className="w-full"
+          onClick={handleAtivar}
+          loading={loading}
+          disabled={configLoading || !config}
+        >
           Ativar Nexvia Flow
         </Button>
         <Button

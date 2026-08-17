@@ -22,7 +22,7 @@ export function Login() {
       await login(email, password)
       const clinica = await refreshClinica()
       toast('Bem-vindo de volta.', 'success')
-      navigate(getPostLoginPath(clinica))
+      navigate(getPostLoginPath(clinica), { replace: true })
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Erro ao entrar', 'error')
     } finally {

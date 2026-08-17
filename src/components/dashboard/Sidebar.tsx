@@ -21,12 +21,25 @@ export function Sidebar() {
   const { logout } = useAuth()
   const navigate = useNavigate()
 
+  const handleLogout = async () => {
+    await logout()
+    navigate('/flow/login')
+  }
+
   return (
     <aside className="border-b-2 border-white/10 bg-bg-secondary md:min-h-screen md:border-r-2 md:border-b-0">
       <div className="flex items-center justify-between px-4 py-5 md:block">
         <p className="font-display text-xl font-bold">
           Nexvia <span className="text-primary">Flow</span>
         </p>
+        <Button
+          variant="ghost"
+          className="px-2 py-2 md:hidden"
+          onClick={handleLogout}
+          aria-label="Sair"
+        >
+          <LogOut size={16} />
+        </Button>
       </div>
       <nav className="flex gap-1 overflow-x-auto px-2 pb-3 md:flex-col md:overflow-visible md:px-3 md:pb-0">
         {links.map((link) => (
@@ -52,10 +65,7 @@ export function Sidebar() {
         <Button
           variant="ghost"
           className="w-full justify-start px-3"
-          onClick={async () => {
-            await logout()
-            navigate('/flow/login')
-          }}
+          onClick={handleLogout}
         >
           <LogOut size={16} />
           Sair

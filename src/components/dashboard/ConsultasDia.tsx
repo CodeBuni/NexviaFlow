@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useAuth } from '@/hooks/useAuth'
-import { useDashboard } from '@/hooks/useDashboard'
+import { useDashboardContext } from '@/hooks/useDashboardContext'
 import { formatTime } from '@/lib/utils'
 import type { ConsultaStatus } from '@/types'
 
@@ -16,7 +16,7 @@ const statusTone: Record<ConsultaStatus, 'green' | 'red' | 'primary' | 'muted'> 
 
 export function ConsultasDia({ compact = false }: { compact?: boolean }) {
   const { clinica } = useAuth()
-  const { consultas, loading } = useDashboard(clinica?.id)
+  const { consultas, loading, isDemo } = useDashboardContext()
 
   if (loading) {
     return <Skeleton className="h-64" />
@@ -31,7 +31,10 @@ export function ConsultasDia({ compact = false }: { compact?: boolean }) {
         </>
       )}
       {compact && (
-        <h3 className="mb-3 font-display text-xl font-bold">Consultas do dia</h3>
+        <div className="mb-3 flex items-center gap-2">
+          <h3 className="font-display text-xl font-bold">Consultas do dia</h3>
+          {isDemo && <Badge>Demo</Badge>}
+        </div>
       )}
       <Card className={compact ? 'p-0' : 'mt-4 p-0'}>
         <div className="divide-y-2 divide-white/5">
@@ -54,7 +57,8 @@ export function ConsultasDia({ compact = false }: { compact?: boolean }) {
           ))}
           {consultas.length === 0 && (
             <p className="px-4 py-8 text-center text-white/40">
-              Sem consultas para hoje.
+              Sem consultas para hoje. Quando o calendário e as automações estiverem
+              ligados, aparecem aqui.
             </p>
           )}
         </div>

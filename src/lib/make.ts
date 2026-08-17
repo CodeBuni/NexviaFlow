@@ -15,32 +15,28 @@ export interface CreateScenarioPayload {
   }
 }
 
-function demoResult(clinicaId: string) {
-  return {
-    scenarioId: `demo_scenario_${clinicaId.slice(0, 8)}`,
-    sheetId: `demo_sheet_${clinicaId.slice(0, 8)}`,
-    demo: true as const,
-  }
+export interface CreateScenarioResult {
+  scenarioId: string
+  sheetId: string
+  demo?: boolean
 }
 
-export async function createMakeScenario(payload: CreateScenarioPayload) {
-  try {
-    const response = await fetch('/api/make/create-scenario', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+export async function createMakeScenario(
+  payload: CreateScenarioPayload,
+): Promise<CreateScenarioResult> {
+  const response = await fetch('/api/make/create-scenario', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
 
-    if (!response.ok) {
-      return demoResult(payload.clinicaId)
-    }
-
-    return response.json() as Promise<{
-      scenarioId: string
-      sheetId: string
-      demo?: boolean
-    }>
-  } catch {
-    return demoResult(payload.clinicaId)
+  const data = (await response.json().catch(() => ({}))) as CreateScenarioResult & {
+    message?: string
   }
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Falha ao ativar automações. Tente novamente.')
+  }
+
+  return data
 }

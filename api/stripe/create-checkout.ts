@@ -6,9 +6,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ message: 'Method not allowed' })
   }
 
-  const { plano, clinicaId } = req.body as {
+  const { plano, clinicaId, email } = req.body as {
     plano?: 'starter' | 'pro'
     clinicaId?: string
+    email?: string
   }
 
   if (!plano || !clinicaId) {
@@ -20,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const proPrice = process.env.STRIPE_PRO_PRICE_ID
   const appUrl = process.env.VITE_APP_URL || 'http://localhost:5173'
 
-  if (!secret || !starterPrice || !proPrice) {
+  if (!secret || !starterPrice || !proPrice || secret.includes('xxxxx')) {
     return res.status(200).json({
       url: `${appUrl}/flow/dashboard/configuracoes?plano=${plano}&demo=1`,
       demo: true,
@@ -36,6 +37,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${appUrl}/flow/dashboard/configuracoes?checkout=success`,
       cancel_url: `${appUrl}/flow/dashboard/configuracoes?checkout=cancel`,
+      customer_email: email || undefined,
+      client_reference_id: clinicaId,
       metadata: { clinicaId, plano },
       subscription_data: {
         metadata: { clinicaId, plano },

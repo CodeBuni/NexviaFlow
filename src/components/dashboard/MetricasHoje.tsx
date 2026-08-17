@@ -1,15 +1,14 @@
 import { Calendar, CheckCircle2, AlertTriangle, XCircle, Users } from 'lucide-react'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { useAuth } from '@/hooks/useAuth'
-import { useDashboard } from '@/hooks/useDashboard'
+import { Badge } from '@/components/ui/Badge'
+import { useDashboardContext } from '@/hooks/useDashboardContext'
 import { formatCurrency, formatPercent } from '@/lib/utils'
 import { FilaEspera } from './FilaEspera'
 import { ConsultasDia } from './ConsultasDia'
 
 export function MetricasHoje() {
-  const { clinica } = useAuth()
-  const { hoje, mes, loading } = useDashboard(clinica?.id)
+  const { hoje, mes, loading, error, isDemo } = useDashboardContext()
 
   if (loading || !hoje) {
     return (
@@ -27,8 +26,22 @@ export function MetricasHoje() {
 
   return (
     <div className="space-y-8">
+      {(isDemo || error) && (
+        <div className="border-2 border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+          {isDemo && (
+            <p className="font-bold text-primary">
+              A mostrar dados de demonstração — as métricas reais chegam quando o Make alimentar a base de dados.
+            </p>
+          )}
+          {error && <p className="mt-1 text-red">Erro ao carregar: {error}</p>}
+        </div>
+      )}
+
       <section>
-        <h2 className="font-display text-2xl font-bold">Hoje</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-display text-2xl font-bold">Hoje</h2>
+          {isDemo && <Badge>Demo</Badge>}
+        </div>
         <p className="mt-1 text-white/50">
           Confirmações e risco em tempo real na sua clínica.
         </p>
@@ -77,10 +90,7 @@ export function MetricasHoje() {
             label="Taxa de confirmação"
             value={formatPercent(mes.taxa_confirmacao)}
           />
-          <MetricCard
-            label="Pacientes na fila"
-            value={mes.pacientes_fila_espera}
-          />
+          <MetricCard label="Pacientes na fila" value={mes.pacientes_fila_espera} />
         </div>
       </section>
 
@@ -88,7 +98,7 @@ export function MetricasHoje() {
         <div className="xl:col-span-2">
           <ConsultasDia compact />
         </div>
-        <FilaEspera count={mes.pacientes_fila_espera} />
+        <FilaEspera count={mes.pacientes_fila_espera} isDemo={isDemo} />
       </div>
     </div>
   )

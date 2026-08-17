@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Calendar } from 'lucide-react'
 import { OnboardingShell } from './OnboardingShell'
 import { Button } from '@/components/ui/Button'
@@ -11,12 +11,53 @@ import { useCalendar } from '@/hooks/useCalendar'
 
 export function ConectarCalendario() {
   const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
   const { toast } = useToast()
   const { clinica, updateClinica, advanceOnboarding } = useAuth()
-  const { connect, configured } = useCalendar()
+  const { connect, configured, completeOAuth } = useCalendar()
   const [loading, setLoading] = useState(false)
 
   const connected = clinica?.google_calendar_connected
+
+  // Handle OAuth callback ?code=
+  useEffect(() => {
+    const code = params.get('code')
+    const error = params.get('error')
+    if (!code && !error) return
+    if (!clinica) return
+
+    if (error) {
+      toast('Autorização Google cancelada.', 'error')
+      setParams({}, { replace: true })
+      return
+    }
+
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      try {
+        const result = await completeOAuth(code!)
+        if (cancelled) return
+        await updateClinica({
+          google_calendar_connected: true,
+          google_calendar_email: result.email || clinica.email,
+          google_calendar_token: result.tokens,
+        })
+        toast('Google Calendar conectado.', 'success')
+      } catch (err) {
+        toast(err instanceof Error ? err.message : 'Erro no OAuth Google', 'error')
+      } finally {
+        if (!cancelled) {
+          setParams({}, { replace: true })
+          setLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [params, clinica, completeOAuth, updateClinica, toast, setParams])
 
   const handleConnect = async () => {
     if (!clinica) return
@@ -30,15 +71,14 @@ export function ConectarCalendario() {
           google_calendar_token: { demo: true },
         })
         toast(
-          configured
-            ? 'Calendário conectado.'
-            : 'Modo demo: calendário simulado (configure Google OAuth depois).',
+          'Modo demo: calendário simulado. Configure VITE_GOOGLE_CLIENT_ID para OAuth real.',
           'success',
         )
+        setLoading(false)
       }
+      // if redirected, page unloads
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Erro ao conectar', 'error')
-    } finally {
       setLoading(false)
     }
   }
@@ -75,6 +115,11 @@ export function ConectarCalendario() {
             <p className="mt-1 text-sm text-white/60">
               Só lemos eventos. Não alteramos a sua agenda.
             </p>
+            {configured && (
+              <Badge className="mt-2" tone="primary">
+                OAuth configurado
+              </Badge>
+            )}
           </div>
         </div>
 

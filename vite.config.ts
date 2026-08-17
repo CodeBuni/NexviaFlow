@@ -55,6 +55,19 @@ function localApiPlugin(): Plugin {
           return
         }
 
+        if (req.method === 'POST' && req.url.startsWith('/api/google/exchange-token')) {
+          res.statusCode = 503
+          res.setHeader('Content-Type', 'application/json')
+          res.end(
+            JSON.stringify({
+              message:
+                'Google OAuth local: configure GOOGLE_CLIENT_SECRET e use `vercel dev`, ou avance em modo demo.',
+              demo: true,
+            }),
+          )
+          return
+        }
+
         next()
       })
     },

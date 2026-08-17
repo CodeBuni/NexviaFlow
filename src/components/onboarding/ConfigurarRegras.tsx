@@ -39,17 +39,23 @@ export function ConfigurarRegras() {
     if (!clinica) return
     setLoading(true)
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('configuracoes')
-        .update({
-          dias_antecedencia_lembrete: dias,
-          max_tentativas_contacto: tentativas,
-          fila_espera_ativa: fila,
-          score_risco_ativo: isPro ? score : false,
-          atualizado_em: new Date().toISOString(),
-        })
-        .eq('clinica_id', clinica.id)
+        .upsert(
+          {
+            clinica_id: clinica.id,
+            dias_antecedencia_lembrete: dias,
+            max_tentativas_contacto: tentativas,
+            fila_espera_ativa: fila,
+            score_risco_ativo: isPro ? score : false,
+            atualizado_em: new Date().toISOString(),
+          },
+          { onConflict: 'clinica_id' },
+        )
+        .select('id')
+        .single()
       if (error) throw error
+      if (!data) throw new Error('Não foi possível guardar as regras.')
       await advanceOnboarding('confirmar')
       navigate('/flow/onboarding/confirmar')
     } catch (err) {

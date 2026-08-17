@@ -56,14 +56,20 @@ export function TemplatesMensagem() {
     if (!clinica) return
     setLoading(true)
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('configuracoes')
-        .update({
-          ...templates,
-          atualizado_em: new Date().toISOString(),
-        })
-        .eq('clinica_id', clinica.id)
+        .upsert(
+          {
+            clinica_id: clinica.id,
+            ...templates,
+            atualizado_em: new Date().toISOString(),
+          },
+          { onConflict: 'clinica_id' },
+        )
+        .select('id')
+        .single()
       if (error) throw error
+      if (!data) throw new Error('Não foi possível guardar os templates.')
       await advanceOnboarding('regras')
       navigate('/flow/onboarding/regras')
     } catch (err) {

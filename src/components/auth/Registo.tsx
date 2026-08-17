@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Card } from '@/components/ui/Card'
 import { useToast } from '@/components/ui/Toast'
-import { useAuth } from '@/hooks/useAuth'
+import { EmailConfirmationRequiredError, useAuth } from '@/hooks/useAuth'
 import type { Plano } from '@/types'
 
 export function Registo() {
@@ -46,7 +46,12 @@ export function Registo() {
       toast('Conta criada. Vamos configurar a sua clínica.', 'success')
       navigate('/flow/onboarding/calendario')
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Erro ao criar conta', 'error')
+      if (err instanceof EmailConfirmationRequiredError) {
+        toast(err.message, 'info')
+        navigate('/flow/login')
+      } else {
+        toast(err instanceof Error ? err.message : 'Erro ao criar conta', 'error')
+      }
     } finally {
       setLoading(false)
     }

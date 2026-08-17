@@ -30,8 +30,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const token = process.env.MAKE_API_TOKEN
   const folderId = process.env.MAKE_FOLDER_ID
 
-  // Demo fallback when Make credentials are not configured
-  if (!token) {
+  // Demo only when Make credentials are not configured
+  if (!token || token.includes('xxxxx')) {
     return res.status(200).json({
       scenarioId: `demo_scenario_${body.clinicaId.slice(0, 8)}`,
       sheetId: `demo_sheet_${body.clinicaId.slice(0, 8)}`,
@@ -50,7 +50,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         name: `Nexvia Flow - ${body.nomeClinica}`,
         folderId: folderId || undefined,
         scheduling: { type: 'indefinitely' },
-        // Minimal scenario blueprint; expand with real module IDs in produção
         blueprint: {
           name: `Nexvia Flow - ${body.nomeClinica}`,
           flow: [
@@ -87,16 +86,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!createRes.ok) {
       const errText = await createRes.text()
       console.error('Make create scenario failed', errText)
-      // Fallback to demo so onboarding is not blocked
-      return res.status(200).json({
-        scenarioId: `demo_scenario_${body.clinicaId.slice(0, 8)}`,
-        sheetId: `demo_sheet_${body.clinicaId.slice(0, 8)}`,
-        demo: true,
-        warning: 'Make API falhou; ativado em modo demo.',
+      return res.status(502).json({
+        message:
+          'A API do Make falhou ao criar o cenário. Verifique o token e o blueprint.',
+        detail: errText.slice(0, 500),
       })
     }
 
-    const created = (await createRes.json()) as { id?: string | number; scenario?: { id?: string | number } }
+    const created = (await createRes.json()) as {
+      id?: string | number
+      scenario?: { id?: string | number }
+    }
     const scenarioId = String(created.id || created.scenario?.id || '')
 
     if (scenarioId) {
@@ -116,10 +116,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
   } catch (error) {
     console.error(error)
-    return res.status(200).json({
-      scenarioId: `demo_scenario_${body.clinicaId.slice(0, 8)}`,
-      sheetId: `demo_sheet_${body.clinicaId.slice(0, 8)}`,
-      demo: true,
+    return res.status(500).json({
+      message: error instanceof Error ? error.message : 'Erro interno Make',
     })
   }
 }

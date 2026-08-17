@@ -32,7 +32,7 @@ export function ProtectedRoute({
   }
 
   if (!clinica) {
-    return <Navigate to="/flow/registo" replace />
+    return <Navigate to="/flow/auth/callback" replace />
   }
 
   const incomplete =
