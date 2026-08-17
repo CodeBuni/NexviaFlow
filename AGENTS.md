@@ -1,5 +1,14 @@
 # Nexvia Flow — Agent notes
 
+## Operator mode (humano = mínimo)
+O dono do produto **só cola secrets / frases** no chat. Ver **`ME_DIZ.md`**.
+
+Quando receber `NEXVIA SECRETS` ou um bloco parcial:
+1. Guardar em `.env` local (nunca commit)
+2. Se Vercel MCP autenticado → meter env no projeto + redeploy
+3. Atualizar Linear MAR-19+ e Notion checklist
+4. Correr `npm run check:env` e reportar o que falta
+
 ## Product
 SaaS self-service de retenção de pacientes para clínicas privadas (PT).
 Repo: https://github.com/CodeBuni/NexviaFlow
@@ -12,7 +21,8 @@ React + Vite + Tailwind 4 + Supabase + Vercel API routes (Make / Stripe / Google
 ## Local
 ```bash
 npm install
-cp .env.example .env   # preencher pelo menos VITE_SUPABASE_*
+cp .env.example .env   # ou pedir ao agent para preencher
+npm run check:env
 npm run dev
 ```
 

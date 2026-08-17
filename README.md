@@ -4,6 +4,8 @@ Plataforma SaaS self-service de retenção de pacientes e inteligência de recei
 
 **App:** [app.nexvia.pt](https://app.nexvia.pt) · **Site:** [nexvia.pt](https://nexvia.pt)
 
+> **Dono do produto:** não precisas de mexer no código. Abre [`ME_DIZ.md`](./ME_DIZ.md), cola secrets no chat do agent, e ele faz o resto.
+
 ## Stack
 
 - React 19 + TypeScript + Vite
@@ -22,6 +24,7 @@ Plataforma SaaS self-service de retenção de pacientes e inteligência de recei
 npm install
 cp .env.example .env
 # Preencher VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY
+npm run check:env
 npm run dev
 ```
 
